@@ -1,0 +1,120 @@
+name: ROS 2 Lyrical CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      ROS_DISTRO: lyrical
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      DEBIAN_FRONTEND: noninteractive
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      ROS_DOMAIN_ID: '175'
+      ROS_AUTOMATIC_DISCOVERY_RANGE: 'OFF'
+      ROS_STATIC_PEERS: ''
+      ROS_SECURITY_ENABLE: 'false'
+      SKIP_DEFAULT_XML: '1'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Verify Ubuntu version
+        run: |
+          source /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_ID" = 26.04
+          test "$VERSION_CODENAME" = resolute
+
+      # ROS Tooling Working Group action; configures the official ROS apt
+      # repository and development tools. Install only ros-base below.
+      - name: Configure ROS repository and development tools
+        uses: ros-tooling/setup-ros@649ef6bcd696da05bc27ceb3fab69d810c0daeab # verified v0.7
+        with:
+          use-ros2-testing: false
+          install-connext: false
+
+      - name: Install Lyrical and workspace dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            ros-dev-tools ros-lyrical-ros-base ros-lyrical-rmw-fastrtps-cpp
+          source /opt/ros/lyrical/setup.bash
+          if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+            sudo rosdep init
+          fi
+          rosdep update --rosdistro lyrical
+          rosdep install --from-paths src --ignore-src --rosdistro lyrical -y
+
+      - name: Build workspace
+        run: |
+          source /opt/ros/lyrical/setup.bash
+          colcon build --symlink-install --event-handlers console_direct+
+
+      - name: Test workspace with DDS discovery disabled
+        id: test
+        env:
+          ROS_LOG_DIR: ${{ runner.temp }}/ros2-logs
+        run: |
+          source /opt/ros/lyrical/setup.bash
+          source install/setup.bash
+          unset ROS_DISCOVERY_SERVER ROS_SUPER_CLIENT ROS_LOCALHOST_ONLY
+          unset FASTDDS_DEFAULT_PROFILES_FILE FASTRTPS_DEFAULT_PROFILES_FILE
+          unset RMW_FASTRTPS_USE_QOS_FROM_XML
+          # No launch, navigation, driver, or deployment commands are run.
+          colcon test --return-code-on-test-failure --event-handlers console_direct+
+
+      - name: Check and record test results
+        if: ${{ always() && (steps.test.outcome == 'success' || steps.test.outcome == 'failure') }}
+        run: |
+          source /opt/ros/lyrical/setup.bash
+          colcon test-result --all --verbose | tee "$RUNNER_TEMP/ros2-test-results.txt"
+          # Catch accidental loss of test discovery for the current package.
+          test -s build/robot_diagnostics/pytest.xml
+
+      - name: Write job summary
+        if: ${{ always() }}
+        env:
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+        run: |
+          {
+            echo '## ROS 2 Lyrical / Ubuntu 26.04'
+            echo "Test step outcome: ${TEST_OUTCOME:-not run}"
+            if [[ -f "$RUNNER_TEMP/ros2-test-results.txt" ]]; then
+              echo '```text'
+              cat "$RUNNER_TEMP/ros2-test-results.txt"
+              echo '```'
+            else
+              echo 'No test report was generated; inspect setup/build logs.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test reports and logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ros2-lyrical-test-reports-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            log/
+            build/**/pytest.xml
+            build/**/test_results/**
+            build/**/Testing/Temporary/**
+            ${{ runner.temp }}/ros2-test-results.txt
+            ${{ runner.temp }}/ros2-logs/
