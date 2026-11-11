@@ -12,6 +12,7 @@ __pycache__/
 # VS Code local settings
 .vscode/*
 !.vscode/tasks.json
+!.vscode/launch.json
 
 # System files
 .DS_Store

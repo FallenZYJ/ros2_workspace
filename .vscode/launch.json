@@ -1,0 +1,44 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Attach motion_monitor (localhost)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {"host": "127.0.0.1", "port": 5678},
+            "justMyCode": true
+        },
+        {
+            "name": "C++: GDB Attach (template)",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${input:cppExecutable}",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "${workspaceFolder}/scripts/gdb_ros.sh",
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [{"text": "-enable-pretty-printing", "ignoreFailures": true}]
+        },
+        {
+            "name": "C++: GDB Launch (template)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${input:cppExecutable}",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "${workspaceFolder}/scripts/gdb_ros.sh",
+            "setupCommands": [{"text": "-enable-pretty-printing", "ignoreFailures": true}]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "cppExecutable",
+            "type": "promptString",
+            "description": "Absolute path to the C++ executable with debug symbols (no C++ node exists yet)"
+        }
+    ]
+}
