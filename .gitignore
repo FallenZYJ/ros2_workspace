@@ -1,0 +1,33 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# VS Code local settings
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# ROS bags and recordings
+*.db3
+*.mcap
+*.bag
+*.bag.active
+
+# Large model files
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Secrets
+.env
+.env.*
