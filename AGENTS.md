@@ -21,6 +21,8 @@
 ## 3. ROS 2 Development
 - Source /opt/ros/lyrical/setup.bash before ROS commands.
 - Use colcon to build affected packages.
+- Prefer `scripts/build.sh` and `scripts/test.sh` for workspace builds and tests; pass package selection arguments as needed.
+- Request explicit user approval before deleting build artifacts. Preview with `scripts/clean.sh`; use `--yes` only after approval.
 - Run available tests when appropriate.
 - Maintain valid package.xml and build configuration.
 - Do not assume ROS 2 Jazzy and Lyrical are fully compatible.

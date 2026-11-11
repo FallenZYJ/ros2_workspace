@@ -10,7 +10,8 @@ __pycache__/
 .venv/
 
 # VS Code local settings
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 
 # System files
 .DS_Store

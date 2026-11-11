@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Workspace",
+            "type": "process",
+            "command": "bash",
+            "args": ["${workspaceFolder}/scripts/build.sh"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "group": {"kind": "build", "isDefault": true},
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Test Workspace",
+            "type": "process",
+            "command": "bash",
+            "args": ["${workspaceFolder}/scripts/test.sh"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean Build Artifacts",
+            "type": "process",
+            "command": "bash",
+            "args": ["${workspaceFolder}/scripts/clean.sh", "${input:cleanMode}"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "cleanMode",
+            "type": "pickString",
+            "description": "Preview or explicitly approve deleting build/, install/, log/",
+            "options": ["", "--yes"],
+            "default": ""
+        }
+    ]
+}

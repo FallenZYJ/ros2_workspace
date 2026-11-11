@@ -66,6 +66,10 @@ jobs:
           source /opt/ros/lyrical/setup.bash
           colcon build --symlink-install --event-handlers console_direct+
 
+      - name: Test development scripts
+        run: |
+          python3 -m unittest discover -s scripts/tests -v
+
       - name: Test workspace with DDS discovery disabled
         id: test
         env:
