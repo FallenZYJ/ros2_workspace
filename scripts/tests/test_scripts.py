@@ -63,6 +63,62 @@ sys.exit(int(os.environ.get('RESULT_STATUS' if sys.argv[1] == 'test-result' else
         self.assertEqual(self.run_script('build.sh').returncode, 0)
         self.assertEqual(self.run_script('test.sh').returncode, 0)
 
+    def test_debug_wrapper_preserves_entry_path_and_ros_arguments(self):
+        python = self.bin / 'python3'
+        python.write_text('''#!/bin/bash
+if [[ "$1" == -c ]]; then exit 0; fi
+if [[ "$1" == - ]]; then
+    cat >/dev/null
+    printf '%s/install/robot_diagnostics/lib/robot_diagnostics/motion_monitor\\n' "$2"
+    exit 0
+fi
+printf '%s\\0' "$PWD" "$TOOLING_ENV_LOADED" "$@" > "$CALLS"
+exit "${RUN_STATUS:-0}"
+''')
+        python.chmod(0o755)
+        args = ['--ros-args', '-p', 'odom_topic:=/topic with spaces']
+        self.env['RUN_STATUS'] = '6'
+        self.assertEqual(self.run_script('debug_motion_monitor.sh', *args).returncode, 6)
+        recorded = self.calls.read_bytes().decode().split('\0')[:-1]
+        self.assertEqual(recorded, [str(self.root), 'yes', '-Xfrozen_modules=off',
+                         '-m', 'debugpy', '--listen', '127.0.0.1:5678',
+                         '--wait-for-client', str(self.root / 'install/robot_diagnostics/lib/robot_diagnostics/motion_monitor'), *args])
+
+    def test_debug_dependency_failure_stops_startup(self):
+        python = self.bin / 'python3'
+        python.write_text('#!/bin/bash\nexit 4\n')
+        python.chmod(0o755)
+        result = self.run_script('debug_motion_monitor.sh')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('cannot import debugpy', result.stderr)
+
+    def test_gdb_wrapper_loads_environment_and_preserves_mi_args(self):
+        gdb = self.bin / 'gdb'
+        gdb.write_text('#!/bin/bash\nprintf "%s\\0" "$TOOLING_ENV_LOADED" "$@" > "$CALLS"\nexit 5\n')
+        gdb.chmod(0o755)
+        args = ['--interpreter=mi', '--args', '/path with spaces/node']
+        self.assertEqual(self.run_script('gdb_ros.sh', *args).returncode, 5)
+        self.assertEqual(self.calls.read_bytes().decode().split('\0')[:-1], ['yes', *args])
+
+    def test_debug_configurations_and_existing_tasks(self):
+        root = SCRIPTS.parent
+        launch = json.loads((root / '.vscode/launch.json').read_text())
+        tasks = json.loads((root / '.vscode/tasks.json').read_text())
+        self.assertEqual(launch['version'], '0.2.0')
+        configs = launch['configurations']
+        python = next(c for c in configs if c['type'] == 'debugpy')
+        self.assertEqual(python['request'], 'attach')
+        self.assertEqual(python['connect'], {'host': '127.0.0.1', 'port': 5678})
+        self.assertTrue(all('preLaunchTask' not in c for c in configs))
+        cpp = [c for c in configs if c['type'] == 'cppdbg']
+        self.assertEqual({c['request'] for c in cpp}, {'launch', 'attach'})
+        for config in cpp:
+            self.assertEqual(config['MIMode'], 'gdb')
+            self.assertEqual(config['miDebuggerPath'], '${workspaceFolder}/scripts/gdb_ros.sh')
+            self.assertEqual(config['program'], '${input:cppExecutable}')
+        self.assertEqual([t['label'] for t in tasks['tasks']],
+                         ['Build Workspace', 'Test Workspace', 'Clean Build Artifacts'])
+
     def test_environment_failure_stops_colcon(self):
         (self.root / 'scripts/env.sh').write_text('return 9\n')
         for name in ['build.sh', 'test.sh']:
