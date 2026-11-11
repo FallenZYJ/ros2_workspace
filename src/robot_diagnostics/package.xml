@@ -5,7 +5,6 @@
   <description>Read-only odometry and velocity command monitoring.</description>
   <maintainer email="maintainers@example.com">robot_diagnostics maintainers</maintainer>
   <license>Apache-2.0</license>
-  <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
